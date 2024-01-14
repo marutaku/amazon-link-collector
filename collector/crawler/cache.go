@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path"
+
+	"github.com/marutaku/amazon-link-collector/collector/utils"
 )
 
 type Cache interface {
-	IsCached(urlString string) bool
+	IsCached(urlString string) (bool, error)
 	StoreBookmarkCache(urlString string, content string) error
 	GetBookmarkCache(urlString string) (string, error)
 }
@@ -24,7 +26,7 @@ func hashURL(url string) string {
 }
 
 func (c *LocalCache) buildCacheFilepath(urlString string) (string, error) {
-	hostname, err := ExtractHostname(urlString)
+	hostname, err := utils.ExtractHostname(urlString)
 	if err != nil {
 		return "", err
 	}

@@ -4,19 +4,31 @@ import (
 	"log"
 	"os"
 
+	"github.com/marutaku/amazon-link-collector/collector/crawler"
 	"github.com/marutaku/amazon-link-collector/collector/rss"
 	"github.com/urfave/cli/v2"
 )
 
 func crawl(bookmarkURL string) error {
 	feedparser := rss.NewFeedParser(bookmarkURL)
+	cache := crawler.NewLocalCache("./.cache")
+	downloader := crawler.NewDownloader(cache)
 	bookmarks, err := feedparser.Parse()
 	if err != nil {
 		return err
 	}
-	urls := make([]string, len(bookmarks))
-	for index, bookmark := range bookmarks {
-		urls[index] = bookmark.URL
+	contents, err := downloader.BulkDownload(bookmarks)
+	if err != nil {
+		return err
+	}
+	for _, content := range contents {
+		amazonLinks, err := crawler.ExtractAmazonLink(content)
+		if err != nil {
+			return err
+		}
+		for _, amazonLink := range amazonLinks {
+			log.Println(amazonLink)
+		}
 	}
 	return nil
 }

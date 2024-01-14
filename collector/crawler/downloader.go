@@ -4,6 +4,9 @@ import (
 	"io"
 	"net/http"
 	"sync"
+
+	"github.com/marutaku/amazon-link-collector/collector/domain"
+	"github.com/marutaku/amazon-link-collector/collector/utils"
 )
 
 var MAX_CONCURRENT_DOWNLOAD_IN_SAME_ORIGIN = 1
@@ -22,12 +25,17 @@ func NewDownloader(cache Cache) *Downloader {
 
 func (d *Downloader) download(i int, url string, contentsArray []string, errorsArray []error, wg *sync.WaitGroup) {
 	defer wg.Done()
-	hostname, err := ExtractHostname(url)
+	hostname, err := utils.ExtractHostname(url)
 	if err != nil {
 		errorsArray[i] = err
 		return
 	}
-	if d.cache.IsCached(url) {
+	exists, err := d.cache.IsCached(url)
+	if err != nil {
+		errorsArray[i] = err
+		return
+	}
+	if exists {
 		content, err := d.cache.GetBookmarkCache(url)
 		if err != nil {
 			errorsArray[i] = err
@@ -56,9 +64,9 @@ func (d *Downloader) download(i int, url string, contentsArray []string, errorsA
 	contentsArray[i] = stringBody
 }
 
-func (d *Downloader) BulkDownload(urls []string) ([]string, error) {
-	for _, url := range urls {
-		hostname, err := ExtractHostname(url)
+func (d *Downloader) BulkDownload(bookmarks []*domain.Bookmark) ([]string, error) {
+	for _, bookmark := range bookmarks {
+		hostname, err := utils.ExtractHostname(bookmark.URL)
 		if err != nil {
 			return nil, err
 		}
@@ -68,46 +76,12 @@ func (d *Downloader) BulkDownload(urls []string) ([]string, error) {
 	}
 
 	var wg sync.WaitGroup
-	contentsArray := make([]string, len(urls))
-	errorsArray := make([]error, len(urls))
+	contentsArray := make([]string, len(bookmarks))
+	errorsArray := make([]error, len(bookmarks))
 
-	for i, url := range urls {
+	for i, bookmark := range bookmarks {
 		wg.Add(1)
-		go func(i int, url string) {
-			defer wg.Done()
-			hostname, err := ExtractHostname(url)
-			if err != nil {
-				errorsArray[i] = err
-				return
-			}
-			if d.cache.IsCached(url) {
-				content, err := d.cache.GetBookmarkCache(url)
-				if err != nil {
-					errorsArray[i] = err
-					return
-				}
-				contentsArray[i] = content
-				return
-			}
-			d.originsConnections[hostname] <- struct{}{}
-			defer func() { <-d.originsConnections[hostname] }()
-
-			resp, err := http.Get(url)
-			if err != nil {
-				errorsArray[i] = err
-				return
-			}
-			defer resp.Body.Close()
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				errorsArray[i] = err
-				return
-			}
-			stringBody := string(body)
-			d.cache.StoreBookmarkCache(url, stringBody)
-			contentsArray[i] = stringBody
-		}(i, url)
+		go d.download(i, bookmark.URL, contentsArray, errorsArray, &wg)
 	}
 
 	wg.Wait()
