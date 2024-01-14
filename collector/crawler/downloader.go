@@ -1,55 +1,122 @@
 package crawler
 
 import (
-	"github.com/marutaku/amazon-link-collector/collector/domain"
+	"io"
+	"net/http"
+	"sync"
 )
 
-var MAX_CONCURRENT_DOWNLOAD_NUM = 1
+var MAX_CONCURRENT_DOWNLOAD_IN_SAME_ORIGIN = 1
 
 type Downloader struct {
-	originsConnections map[string]chan string
+	originsConnections map[string]chan struct{}
 	cache              Cache
 }
 
 func NewDownloader(cache Cache) *Downloader {
 	return &Downloader{
-		originsConnections: map[string]chan string{},
+		originsConnections: map[string]chan struct{}{},
 		cache:              cache,
 	}
 }
 
-func download(ch chan string, cache Cache) {
-	for {
-		url := <-ch
-		if content, err := cache.GetBookmarkCache(url); err != nil {
-			ch <- content
-		} else {
-			ch <- ""
-		}
+func (d *Downloader) download(i int, url string, contentsArray []string, errorsArray []error, wg *sync.WaitGroup) {
+	defer wg.Done()
+	hostname, err := ExtractHostname(url)
+	if err != nil {
+		errorsArray[i] = err
+		return
 	}
+	if d.cache.IsCached(url) {
+		content, err := d.cache.GetBookmarkCache(url)
+		if err != nil {
+			errorsArray[i] = err
+			return
+		}
+		contentsArray[i] = content
+		return
+	}
+	d.originsConnections[hostname] <- struct{}{}
+	defer func() { <-d.originsConnections[hostname] }()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		errorsArray[i] = err
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		errorsArray[i] = err
+		return
+	}
+	stringBody := string(body)
+	d.cache.StoreBookmarkCache(url, stringBody)
+	contentsArray[i] = stringBody
 }
 
-func (d *Downloader) BulkDownload(bookmarks []domain.Bookmark) ([]string, error) {
-	for _, bookmarks := range bookmarks {
-		hostname, err := bookmarks.Hostname()
+func (d *Downloader) BulkDownload(urls []string) ([]string, error) {
+	for _, url := range urls {
+		hostname, err := ExtractHostname(url)
 		if err != nil {
 			return nil, err
 		}
 		if _, ok := d.originsConnections[hostname]; !ok {
-			d.originsConnections[hostname] = make(chan string, MAX_CONCURRENT_DOWNLOAD_NUM)
+			d.originsConnections[hostname] = make(chan struct{}, MAX_CONCURRENT_DOWNLOAD_IN_SAME_ORIGIN)
 		}
 	}
-	contentsArray := make([]string, len(bookmarks))
-	go func() {
-		for index, bookmark := range bookmarks {
-			hostname, err := bookmark.Hostname()
+
+	var wg sync.WaitGroup
+	contentsArray := make([]string, len(urls))
+	errorsArray := make([]error, len(urls))
+
+	for i, url := range urls {
+		wg.Add(1)
+		go func(i int, url string) {
+			defer wg.Done()
+			hostname, err := ExtractHostname(url)
 			if err != nil {
+				errorsArray[i] = err
 				return
 			}
-			d.originsConnections[hostname] <- bookmark.URL
-			contents := <-d.originsConnections[hostname]
-			contentsArray[index] = contents
+			if d.cache.IsCached(url) {
+				content, err := d.cache.GetBookmarkCache(url)
+				if err != nil {
+					errorsArray[i] = err
+					return
+				}
+				contentsArray[i] = content
+				return
+			}
+			d.originsConnections[hostname] <- struct{}{}
+			defer func() { <-d.originsConnections[hostname] }()
+
+			resp, err := http.Get(url)
+			if err != nil {
+				errorsArray[i] = err
+				return
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				errorsArray[i] = err
+				return
+			}
+			stringBody := string(body)
+			d.cache.StoreBookmarkCache(url, stringBody)
+			contentsArray[i] = stringBody
+		}(i, url)
+	}
+
+	wg.Wait()
+
+	for _, err := range errorsArray {
+		if err != nil {
+			return nil, err
 		}
-	}()
+	}
+
 	return contentsArray, nil
 }

@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"net/url"
 	"os"
 	"path"
 )
@@ -13,14 +12,6 @@ type Cache interface {
 	IsCached(urlString string) bool
 	StoreBookmarkCache(urlString string, content string) error
 	GetBookmarkCache(urlString string) (string, error)
-}
-
-func extractHostname(urlString string) (string, error) {
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return "", err
-	}
-	return u.Hostname(), nil
 }
 
 type LocalCache struct {
@@ -33,7 +24,7 @@ func hashURL(url string) string {
 }
 
 func (c *LocalCache) buildCacheFilepath(urlString string) (string, error) {
-	hostname, err := extractHostname(urlString)
+	hostname, err := ExtractHostname(urlString)
 	if err != nil {
 		return "", err
 	}
