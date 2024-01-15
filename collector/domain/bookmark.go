@@ -11,6 +11,7 @@ type Bookmark struct {
 	Title       string
 	PublishedAt time.Time
 	URL         string
+	AmazonLinks []string
 }
 
 type BookmarkJSON struct {

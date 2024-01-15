@@ -60,7 +60,11 @@ func (d *Downloader) download(i int, url string, contentsArray []string, errorsA
 		return
 	}
 	stringBody := string(body)
-	d.cache.StoreBookmarkCache(url, stringBody)
+	err = d.cache.StoreBookmarkCache(url, stringBody)
+	if err != nil {
+		errorsArray[i] = err
+		return
+	}
 	contentsArray[i] = stringBody
 }
 

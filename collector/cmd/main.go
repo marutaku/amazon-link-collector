@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+
+	"encoding/json"
 
 	"github.com/marutaku/amazon-link-collector/collector/crawler"
 	"github.com/marutaku/amazon-link-collector/collector/rss"
@@ -21,14 +24,22 @@ func crawl(bookmarkURL string) error {
 	if err != nil {
 		return err
 	}
-	for _, content := range contents {
+	for index, content := range contents {
 		amazonLinks, err := crawler.ExtractAmazonLink(content)
 		if err != nil {
 			return err
 		}
-		for _, amazonLink := range amazonLinks {
-			log.Println(amazonLink)
+		bookmarks[index].AmazonLinks = amazonLinks
+		jsonB, err := json.Marshal(bookmarks[index])
+		if err != nil {
+			return err
 		}
+		file, err := os.Create(fmt.Sprintf("./out/%s.json", bookmarks[index].Title))
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		file.Write(jsonB)
 	}
 	return nil
 }
