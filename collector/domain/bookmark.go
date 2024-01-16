@@ -3,7 +3,6 @@ package domain
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"time"
 )
 
@@ -56,12 +55,4 @@ func (b *Bookmark) UnmarshalJSON(byte []byte) error {
 	}
 	b.URL = BookmarkJSON.URL
 	return err
-}
-
-func (b *Bookmark) Hostname() (string, error) {
-	parsedURL, err := url.Parse(b.URL)
-	if err != nil {
-		return "", err
-	}
-	return parsedURL.Hostname(), nil
 }

@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -49,7 +50,10 @@ func (d *Downloader) download(i int, url string, contentsArray []string, errorsA
 
 	resp, err := http.Get(url)
 	if err != nil {
-		errorsArray[i] = err
+		// 時々エラーが発生するので、諦め
+		// errorsArray[i] = err
+		fmt.Printf("Ignore request url: %s \nerror: %s\n", url, err)
+		contentsArray[i] = ""
 		return
 	}
 	defer resp.Body.Close()
