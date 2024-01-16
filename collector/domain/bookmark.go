@@ -15,9 +15,10 @@ type Bookmark struct {
 }
 
 type BookmarkJSON struct {
-	Title       string `json:"title"`
-	PublishedAt string `json:"published_at"`
-	URL         string `json:"url"`
+	Title       string   `json:"title"`
+	PublishedAt string   `json:"published_at"`
+	URL         string   `json:"url"`
+	AmazonLinks []string `json:"amazon_links"`
 }
 
 func NewBookmark(title string, publishedAt time.Time, url string) *Bookmark {
@@ -37,6 +38,7 @@ func (b *Bookmark) MarshalJSON() ([]byte, error) {
 		Title:       b.Title,
 		PublishedAt: b.PublishedAt.Format(time.RFC3339),
 		URL:         b.URL,
+		AmazonLinks: b.AmazonLinks,
 	})
 	return v, err
 }

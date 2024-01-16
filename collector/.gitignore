@@ -54,3 +54,5 @@ Temporary Items
 !.vscode/extensions.json
 
 dist/
+.cache/
+out/

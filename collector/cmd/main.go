@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -12,7 +11,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func crawl(bookmarkURL string) error {
+func crawl(bookmarkURL string, exportJsonLinePath string) error {
 	feedparser := rss.NewFeedParser(bookmarkURL)
 	cache := crawler.NewLocalCache("./.cache")
 	downloader := crawler.NewDownloader(cache)
@@ -21,6 +20,10 @@ func crawl(bookmarkURL string) error {
 		return err
 	}
 	contents, err := downloader.BulkDownload(bookmarks)
+	if err != nil {
+		return err
+	}
+	outputFile, err := os.Create(exportJsonLinePath)
 	if err != nil {
 		return err
 	}
@@ -34,12 +37,7 @@ func crawl(bookmarkURL string) error {
 		if err != nil {
 			return err
 		}
-		file, err := os.Create(fmt.Sprintf("./out/%s.json", bookmarks[index].Title))
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		file.Write(jsonB)
+		outputFile.WriteString(string(jsonB) + "\n")
 	}
 	return nil
 }
@@ -53,7 +51,11 @@ func main() {
 			if rssFeedURL == "" {
 				log.Fatal("RSS feed URL is required")
 			}
-			err := crawl(rssFeedURL)
+			exportJsonLinePath := cCtx.Args().Get(1)
+			if exportJsonLinePath == "" {
+				log.Fatal("Export JSON line path is required")
+			}
+			err := crawl(rssFeedURL, exportJsonLinePath)
 			if err != nil {
 				log.Fatal(err)
 			}

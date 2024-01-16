@@ -35,6 +35,9 @@ func (c *LocalCache) buildCacheFilepath(urlString string) (string, error) {
 }
 
 func NewLocalCache(cacheDir string) *LocalCache {
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		os.Mkdir(cacheDir, 0755)
+	}
 	return &LocalCache{
 		cacheDir: cacheDir,
 	}
@@ -45,8 +48,11 @@ func (c *LocalCache) IsCached(urlString string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if _, err := os.Stat(cacheFilepath); !os.IsNotExist(err) {
+	_, err = os.Stat(cacheFilepath)
+	if os.IsNotExist(err) {
 		return false, nil
+	} else if err != nil {
+		return false, err
 	}
 	return true, nil
 }

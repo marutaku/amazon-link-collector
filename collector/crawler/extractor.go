@@ -17,13 +17,20 @@ func ShortenAmazonLink(url string) (string, error) {
 	if !strings.Contains(host, "www.amazon.co.jp") && !strings.Contains(host, "www.amazon.com") {
 		return "", fmt.Errorf("link is not amazon")
 	}
+	// /dp or /gp/product で始まるURLを抽出
 	re := regexp.MustCompile(`/dp/\w+|/gp/product/\w+`)
 	matches := re.FindStringSubmatch(url)
 	if len(matches) > 0 {
 		return "https://" + host + matches[0], nil
-	} else {
-		return "", fmt.Errorf("link is invalid")
 	}
+	// URL内部に10桁の数字or大文字アルファベットがあればそれを抽出
+	re = regexp.MustCompile(`[0-9A-Z]{10}`)
+	matches = re.FindStringSubmatch(url)
+	if len(matches) > 0 {
+		return "https://" + host + "/dp/" + matches[0], nil
+	}
+	fmt.Println(url)
+	return "", fmt.Errorf("link is invalid")
 }
 
 func ExtractAmazonLink(body string) ([]string, error) {
