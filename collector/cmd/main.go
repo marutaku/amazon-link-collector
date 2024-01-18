@@ -12,9 +12,10 @@ import (
 )
 
 func crawl(bookmarkURL string, exportJsonLinePath string) error {
-	feedparser := rss.NewFeedParser(bookmarkURL)
-	cache := crawler.NewLocalCache("./.cache")
-	downloader := crawler.NewDownloader(cache)
+	logger := log.New(os.Stdout, "crawl: ", log.LstdFlags)
+	feedparser := rss.NewFeedParser(bookmarkURL, logger)
+	cache := crawler.NewLocalCache("./.cache", logger)
+	downloader := crawler.NewDownloader(cache, logger)
 	bookmarks, err := feedparser.Parse()
 	if err != nil {
 		return err

@@ -2,6 +2,7 @@ package rss
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"time"
 
@@ -11,11 +12,13 @@ import (
 
 type FeedParser struct {
 	feedBaseURL string
+	logger      *log.Logger
 }
 
-func NewFeedParser(feedBaseURL string) *FeedParser {
+func NewFeedParser(feedBaseURL string, logger *log.Logger) *FeedParser {
 	return &FeedParser{
 		feedBaseURL: feedBaseURL,
+		logger:      logger,
 	}
 }
 
@@ -31,12 +34,12 @@ func (f *FeedParser) Parse() ([]*domain.Bookmark, error) {
 		q.Set("page", fmt.Sprint(pageNum))
 		u.RawQuery = q.Encode()
 		url := u.String()
-		fmt.Println(url)
+		f.logger.Println(url)
 		feed, err := gofeed.NewParser().ParseURL(url)
 		if err != nil {
 			return nil, err
 		}
-		if feed.Items == nil {
+		if len(feed.Items) == 0 {
 			break
 		}
 		for _, item := range feed.Items {

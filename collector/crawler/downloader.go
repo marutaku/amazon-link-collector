@@ -3,8 +3,10 @@ package crawler
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/marutaku/amazon-link-collector/collector/domain"
 	"github.com/marutaku/amazon-link-collector/collector/utils"
@@ -15,12 +17,14 @@ var MAX_CONCURRENT_DOWNLOAD_IN_SAME_ORIGIN = 1
 type Downloader struct {
 	originsConnections map[string]chan struct{}
 	cache              Cache
+	logger             *log.Logger
 }
 
-func NewDownloader(cache Cache) *Downloader {
+func NewDownloader(cache Cache, logger *log.Logger) *Downloader {
 	return &Downloader{
 		originsConnections: map[string]chan struct{}{},
 		cache:              cache,
+		logger:             logger,
 	}
 }
 
@@ -37,6 +41,7 @@ func (d *Downloader) download(i int, url string, contentsArray []string, errorsA
 		return
 	}
 	if exists {
+		d.logger.Printf("Cache hit: %s\n", url)
 		content, err := d.cache.GetBookmarkCache(url)
 		if err != nil {
 			errorsArray[i] = err
@@ -48,7 +53,9 @@ func (d *Downloader) download(i int, url string, contentsArray []string, errorsA
 	d.originsConnections[hostname] <- struct{}{}
 	defer func() { <-d.originsConnections[hostname] }()
 
+	d.logger.Printf("Download: %s\n", url)
 	resp, err := http.Get(url)
+	time.Sleep(1 * time.Second)
 	if err != nil {
 		// 時々エラーが発生するので、諦め
 		// errorsArray[i] = err

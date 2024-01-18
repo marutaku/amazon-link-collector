@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 	"path"
 
@@ -18,11 +19,22 @@ type Cache interface {
 
 type LocalCache struct {
 	cacheDir string
+	logger   *log.Logger
 }
 
 func hashURL(url string) string {
 	r := sha256.Sum256([]byte(url))
 	return hex.EncodeToString(r[:])
+}
+
+func NewLocalCache(cacheDir string, logger *log.Logger) *LocalCache {
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		os.Mkdir(cacheDir, 0755)
+	}
+	return &LocalCache{
+		cacheDir: cacheDir,
+		logger:   logger,
+	}
 }
 
 func (c *LocalCache) buildCacheFilepath(urlString string) (string, error) {
@@ -32,15 +44,6 @@ func (c *LocalCache) buildCacheFilepath(urlString string) (string, error) {
 	}
 	hashedURL := hashURL(urlString)
 	return path.Join(c.cacheDir, hostname, fmt.Sprintf("%s.txt", hashedURL)), nil
-}
-
-func NewLocalCache(cacheDir string) *LocalCache {
-	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
-		os.Mkdir(cacheDir, 0755)
-	}
-	return &LocalCache{
-		cacheDir: cacheDir,
-	}
 }
 
 func (c *LocalCache) IsCached(urlString string) (bool, error) {
