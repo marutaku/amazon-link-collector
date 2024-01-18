@@ -29,8 +29,8 @@ func ShortenAmazonLink(url string) (string, error) {
 	if len(matches) > 0 {
 		return "https://" + host + "/dp/" + matches[0], nil
 	}
-	fmt.Println(url)
-	return "", fmt.Errorf("link is invalid")
+	fmt.Printf("link is invalid: %s\n", url)
+	return "", nil
 }
 
 func ExtractAmazonLink(body string) ([]string, error) {
